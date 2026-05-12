@@ -1,0 +1,2 @@
+[2026-04-08 14:17:31] ✔ Starting task
+[2026-04-08 14:17:33] ✔ Export started for background
