@@ -1,7 +1,7 @@
 """
 Convert per-download eBird TSV (and optional root Parquet) files to hive Parquet.
 
-Reads observation files under EBIRD_INPUT_ROOT (default /mnt/f/ebird):
+Reads observation files under EBIRD_INPUT_ROOT (default /mnt/f/biodiversity/ebird):
   ebd_<pkg>/ebd_<pkg>.txt
 
 Writes hive layout for geeDataFromPoints:
@@ -15,9 +15,9 @@ Usage:
   python -u convert_ebird_downloads.py --dry-run
   python -u convert_ebird_downloads.py --only ebd_US_comyel_relApr-2026
   python -u convert_ebird_downloads.py --include-parquets
-  EBIRD_INPUT_ROOT=/mnt/f/ebird EBIRD_OUTPUT=/mnt/c/ebirdpolars python -u convert_ebird_downloads.py
+  EBIRD_INPUT_ROOT=/mnt/f/biodiversity/ebird EBIRD_OUTPUT=/mnt/f/biodiversity/ebirdpolars python -u convert_ebird_downloads.py
 
-Do NOT run the full job inside a Jupyter cell; use a WSL terminal.
+Do NOT run the full job inside a Jupyter cell; use a terminal.
 """
 
 from __future__ import annotations
@@ -29,8 +29,6 @@ from pathlib import Path
 
 os.environ.setdefault("POLARS_MAX_THREADS", "12")
 os.environ.setdefault("POLARS_MAX_OPEN_PARTITIONS", "32")
-
-import polars as pl
 
 from ebird_polars_io import (
     PARTITION_COL,
@@ -48,9 +46,10 @@ from ebird_polars_io import (
     source_marker_path,
     sync_manifest,
 )
+from paths import EBIRD_PARQUET, EBIRD_ROOT
 
-INPUT_ROOT = Path("/mnt/f/ebird")
-OUTPUT_DIR = Path("/mnt/c/ebirdpolars")
+INPUT_ROOT = EBIRD_ROOT
+OUTPUT_DIR = EBIRD_PARQUET
 
 CLEAN_INCOMPLETE = True
 

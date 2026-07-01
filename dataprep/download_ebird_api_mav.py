@@ -9,8 +9,8 @@ AR/LA/MS would be ~39,000 API calls and is not supported here.
 Use instead:
   1. eBird Basic Dataset **Custom Download** (web form) per species/region/date range
      https://support.ebird.org/en/support/solutions/articles/48000838205-download-ebird-data
-  2. Place extracts under /mnt/f/ebird (ebd_<pkg>/ebd_<pkg>.txt)
-  3. Run this script in **convert** mode (default) → hive parquet on /mnt/c/ebirdpolars
+  2. Place extracts under /mnt/f/biodiversity/ebird (ebd_<pkg>/ebd_<pkg>.txt)
+  3. Run this script in **convert** mode (default) → hive parquet on /mnt/f/biodiversity/ebirdpolars
 
 This script:
   - Reads species from "Common Name" / "Scientific name" in mavBiodiversityToolSpeciesList.xlsx
@@ -19,7 +19,6 @@ This script:
   - **manifest** mode: writes a species-code manifest + EBD download instructions
   - **gaps** mode: list species missing EBD TSV and/or parquet (uses taxonomy cache)
   - **pipeline** mode: full status through param CSVs (EBD → parquet → geeDataFromPoints)
-  - **seed-test** mode: write small test parquet for species missing EBD (pipeline testing)
   - **api-historic** mode: opt-in daily API loop (slow; not recommended)
 
 Requires:
@@ -33,7 +32,6 @@ Usage:
   python -u download_ebird_api_mav.py --mode manifest   # species list + EBD help
   python -u download_ebird_api_mav.py --mode gaps       # missing downloads / parquet
   python -u download_ebird_api_mav.py --mode pipeline   # through param CSV stage
-  python -u download_ebird_api_mav.py --mode seed-test --species agelaius_phoeniceus
   python -u download_ebird_api_mav.py --dry-run
 """
 
@@ -64,16 +62,17 @@ from gap_species import (
     GAP_TEST_SPECIES,
     gap_test_species_for_gee,
     gap_test_species_need_ebd,
+    has_parquet_partition,
     report_pipeline_gaps,
-    seed_test_parquet,
 )
+
+from paths import DEFAULT_EBD_ROOT, DEFAULT_EBIRD_PARQUET, DEFAULT_PARAM_CSV
 
 DATAPREP = Path(__file__).resolve().parent
 DEFAULT_EXCEL = DATAPREP / "mavBiodiversityToolSpeciesList.xlsx"
 DEFAULT_AOI = DATAPREP / "mav_counties_4326.parquet"
 DEFAULT_AOI_GEOJSON = DATAPREP / "mav_counties_4326.geojson"
-DEFAULT_OUTPUT = Path("/mnt/c/ebirdpolars")
-DEFAULT_EBD_ROOT = Path("/mnt/f/ebird")
+DEFAULT_OUTPUT = DEFAULT_EBIRD_PARQUET
 CONVERT_SCRIPT = DATAPREP / "convert_ebird_downloads.py"
 
 EBIRD_API_BASE = "https://api.ebird.org/v2"
@@ -280,11 +279,6 @@ def species_keys_from_excel(excel_path: Path) -> list[str]:
             seen.add(key)
             keys.append(key)
     return sorted(keys)
-
-
-def has_parquet_partition(output_dir: Path, species_key: str) -> bool:
-    part = output_dir / f"{PARTITION_PREFIX}{species_key}"
-    return part.is_dir() and any(part.glob("*.parquet"))
 
 
 def ebd_folders_for_code(ebd_root: Path, species_code: str) -> list[str]:
@@ -514,10 +508,9 @@ def main(argv: list[str] | None = None) -> int:
             "Recommended workflow for 1990–2025:\n"
             "  1. --mode manifest  → get species codes + EBD download instructions\n"
             "  2. --mode gaps      → see missing EBD / parquet (e.g. rewbla not rwbl)\n"
-            "  3. Download TSVs from eBird Custom Download into /mnt/f/ebird\n"
-            "  4. --mode convert   → fast local conversion to /mnt/c/ebirdpolars\n"
+            "  3. Download TSVs from eBird Custom Download into /mnt/f/biodiversity/ebird\n"
+            "  4. --mode convert   → fast local conversion to /mnt/f/biodiversity/ebirdpolars\n"
             "  5. --mode pipeline  → see which species still need geeDataFromPoints\n"
-            "  6. --mode seed-test → synthetic parquet for gap species (testing only)\n"
         ),
     )
     parser.add_argument("--excel", type=Path, default=DEFAULT_EXCEL)
@@ -528,34 +521,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--end-year", type=int, default=2025)
     parser.add_argument(
         "--mode",
-        choices=("convert", "manifest", "gaps", "pipeline", "seed-test", "api-historic"),
+        choices=("convert", "manifest", "gaps", "pipeline", "api-historic"),
         default="convert",
         help=(
             "convert=local EBD TSVs (default); manifest=species JSON; gaps=missing EBD/parquet; "
-            "pipeline=through param CSVs; seed-test=synthetic parquet; api-historic=slow"
+            "pipeline=through param CSVs; api-historic=slow"
         ),
     )
     parser.add_argument(
         "--species",
         action="append",
         default=None,
-        help="Scientific name key(s) for seed-test (repeatable). Default: gap test species needing EBD.",
-    )
-    parser.add_argument(
-        "--template",
-        default="geothlypis_trichas",
-        help="Existing parquet partition to copy for seed-test (default: geothlypis_trichas)",
-    )
-    parser.add_argument(
-        "--test-rows",
-        type=int,
-        default=500,
-        help="Rows to copy in seed-test mode (default: 500)",
+        help="Scientific name key(s) for pipeline mode (repeatable).",
     )
     parser.add_argument(
         "--param-dir",
         type=Path,
-        default=Path("/mnt/f/readyparams/param_csvs"),
+        default=DEFAULT_PARAM_CSV,
         help="param_csvs directory for pipeline mode",
     )
     parser.add_argument("--dry-run", action="store_true")
@@ -649,28 +631,8 @@ def main(argv: list[str] | None = None) -> int:
             log(f"  {need_gee}")
         if need_ebd:
             log("")
-            log("Next: EBD Custom Download OR seed-test for:")
+            log("Next: EBD Custom Download for:")
             log(f"  {need_ebd}")
-        return 0
-
-    if args.mode == "seed-test":
-        targets = args.species
-        if targets is None:
-            targets = list(gap_test_species_need_ebd(ebird_parquet=args.output))
-        if not targets:
-            log("No gap test species need seed parquet (all have partitions)")
-            return 0
-        for key in targets:
-            seed_test_parquet(
-                key,
-                args.template,
-                args.output,
-                n_rows=args.test_rows,
-                dry_run=args.dry_run,
-            )
-        log("")
-        log("Seeded test parquet only — replace with real EBD + convert when ready.")
-        log("Then run geeDataFromPoints with only_species set to the seeded species.")
         return 0
 
     if args.mode == "convert":

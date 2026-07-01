@@ -1,0 +1,44 @@
+# MAV biodiversity SDM pipeline — conda environment
+#
+# Create:
+#   conda env create -f environment.yml
+# Activate:
+#   conda activate biodiversity
+#
+# If python3 still points at system Python after activation:
+#   export PATH="$CONDA_PREFIX/bin:$PATH"
+#
+# Update an existing env:
+#   conda env update -f environment.yml --prune
+#
+# Note: elapid is installed via pip (conda-forge elapid pins pandas<2; PyPI elapid 1.0.4+ needs pandas>=2.2).
+
+name: biodiversity
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - polars>=1.32
+  - pandas>=2.3
+  - geopandas>=1.1
+  - pyarrow>=18.0
+  - duckdb>=1.4
+  - scikit-learn>=1.5
+  - scipy>=1.16
+  - matplotlib>=3.10
+  - seaborn>=0.13
+  - rasterio>=1.4
+  - gdal>=3.10
+  - shapely>=2.1
+  - pyproj>=3.7
+  - joblib>=1.5
+  - openpyxl>=3.1
+  - requests>=2.32
+  - papermill>=2.6
+  - pytest>=8
+  - jupyterlab>=4.5
+  - ipykernel>=7
+  - earthengine-api>=1.7
+  - pip
+  - pip:
+      - elapid>=1.0.4
