@@ -38,7 +38,6 @@ MAXENT_FAILED_SPECIES: dict[str, str] = {
     "anthus_spragueii": "Not enough presence records",
     "centronyx_henslowii": "Not enough presence records",
     "coturnicops_noveboracensis": "singular KDE covariance (too few presence points)",
-    "ursus_americanus": "Not enough presence records",
     "nerodia_cyclopion": "Not enough presence records",
     "regina_grahamii": "Not enough presence records",
 }
@@ -79,9 +78,9 @@ def has_parquet_partition(output_dir: Path, species_key: str) -> bool:
 
 
 def has_param_csvs(param_dir: Path, species_key: str, n_subsets: int = 2) -> bool:
-    return all(
-        (param_dir / f"{species_key}_subset{i}.csv").is_file() for i in range(n_subsets)
-    )
+    """True when at least n_subsets GEE CSVs exist (subset indices may exceed 0..n-1)."""
+    found = list(param_dir.glob(f"{species_key}_subset*.csv"))
+    return len(found) >= n_subsets
 
 
 def ebd_folders_for_code(ebd_root: Path, species_code: str) -> list[str]:

@@ -46,7 +46,9 @@ from ebird_polars_io import (
 
 # --- paths (override with EBIRD_INPUT / EBIRD_OUTPUT) ---
 INPUT_PATH = Path("/mnt/e/backupfrompc/ebd_US_relSep-2025.txt")
-OUTPUT_DIR = Path("/mnt/f/ebirdpolars")
+from paths import EBIRD_PARQUET
+
+OUTPUT_DIR = EBIRD_PARQUET
 
 BUCKET_COMPLETE_PREFIX = "_bucket_"
 

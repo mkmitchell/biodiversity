@@ -83,7 +83,7 @@ python -m pytest test_convert_ebird_downloads.py test_partition_ebird.py -v
    python -u download_ebird_api_mav.py --mode gaps       # missing EBD / parquet
    python -u download_ebird_api_mav.py --mode pipeline   # through param CSV stage
   ```
-5. **Extract covariates in GEE** — run `geeBackgroundToCSV.ipynb`, then `geeDataFromPoints.ipynb` (see [GEE notebooks](#gee-notebooks)).
+5. **Extract covariates in GEE** — run `geeBackgroundToCSV.ipynb`, then `geeDataFromPoints.ipynb` (see [GEE notebooks](#gee-notebooks)). CLI equivalent for a species list: `python -u export_gee_species.py --species waterfowl12` (or comma-separated keys). Download all `{species}_subset*.csv` from Drive folder `paramcsv_daymet` into `/mnt/f/biodiversity/param_csvs/` (do not use local raster sampling).
 6. **Build group background CSVs** — `groupBGpoints.ipynb` writes `background_avian.csv`, `background_herp.csv`, `background_mammal.csv`.
 7. **Train MaxEnt models** — `runBatch_maxent.ipynb` (uses `maxent_model.py`).
 8. **Create inference rasters** — `GEEcreateRaster.ipynb` + `GEEcreateEnvRaster.ipynb`, then `run_batch_inference.py` (or `runBatch_inference.ipynb`).
@@ -116,6 +116,9 @@ biodiversity/
     ├── mav_counties_4326.parquet / .geojson   # MAV AOI
     ├── pullgbif.ipynb
     ├── geeDataFromPoints.ipynb
+    ├── export_gee_species.py    # CLI GEE Drive export (Daymet/DW/GMTED)
+    ├── export_ursus_gee.py
+    ├── deploy_bioapi.py         # pack models + catalog → /mnt/f/deployapi
     ├── geeBackgroundToCSV.ipynb
     ├── groupBGpoints.ipynb
     ├── GEEcreateRaster.ipynb
