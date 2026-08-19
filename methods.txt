@@ -1,0 +1,29 @@
+Define an AOI and species list.
+
+Run dataprep/pullgbif to grab non-avian species.
+
+Download ebird species of interest.  Per-species downloads live under /mnt/f/biodiversity/ebird as
+  ebd_<pkg>/ebd_<pkg>.txt  (tab-delimited observation files).
+
+Convert downloads to hive parquet for geeDataFromPoints (from WSL terminal, not a notebook cell):
+  conda activate rapids-25.10
+  cd dataprep && python -u convert_ebird_downloads.py 2>&1 | tee /mnt/f/biodiversity/logs/ebird_downloads_to_parquet.log
+Output default: /mnt/f/biodiversity/ebirdpolars/scientific_name=<species>/*.parquet
+See dataprep/ebirdtoparquet.ipynb for --dry-run, progress checks, and optional national-file workflow.
+
+Optional: partition one national EBD file (~440GB) with partition_ebird.py (EBIRD_INPUT / EBIRD_OUTPUT).
+
+Optional: MAV species list → hive parquet (MAV AOI):
+  # Species list: dataprep/mavBiodiversityToolSpeciesList.xlsx (Common Name / Scientific name)
+  # API 2.0 cannot bulk-download 1990-2025; use EBD Custom Download TSVs in /mnt/f/biodiversity/ebird then:
+  conda activate rapids-25.10
+  export EBIRD_API_KEY='...'
+  python -u download_ebird_api_mav.py --mode manifest   # species codes + download instructions
+  python -u download_ebird_api_mav.py --mode convert     # convert /mnt/f/biodiversity/ebird TSVs → /mnt/f/biodiversity/ebirdpolars
+
+geeDataFromPoints reads a species list and calls load species which checks the csv_files folder and parquet_files folder
+for that species file.
+geeBackgroundToCSV creates 20k random points within the provided aoi then calculates covariates within 10km and 500m
+for each point.
+GEEcreateRaster creates Rasters covariates for running the current model and the future scenario.  I need to decide if
+I only need the aoi or the aoi buffered by 10km
